@@ -72,3 +72,12 @@ tests/fixtures/         recorded, scrubbed PointsYeah responses
 ```
 
 Secrets never enter the repo. The session lives in `~/.config/pointmax/session.json` (mode 600).
+
+### Capturing fixtures from the CLI itself
+
+`pointmax search ... --save-raw captures/run1` writes the raw API traffic (unscrubbed) in the
+same format the browser recorder produces, so `devtools.scrub captures/run1` works on it. That
+exercises our own client end to end, but the browser recorder remains the ground truth for the
+query shape: our own queries would otherwise only confirm what we already guessed.
+`uv run python -m pointmax.devtools.find_data_key` prints the bundle code around the `data` key
+constant so it can be read by hand.

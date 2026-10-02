@@ -1,6 +1,7 @@
 """Typer app: login, status, search, show, config, cache."""
 
 import asyncio
+import json
 import os
 import subprocess
 from datetime import date, timedelta
@@ -128,14 +129,26 @@ def _origins(arg: str, settings: config.Settings) -> list[str]:
 
 
 async def _run_search(
-    q: Query, settings: config.Settings, *, verbose: bool
+    q: Query, settings: config.Settings, *, verbose: bool, save_raw: Path | None = None
 ) -> tuple[Planner, SearchResult]:
     cache = Cache(config.cache_path(), settings.cache_ttl_hours)
     limiter = RateLimiter(db_path=config.cache_path())
     data = await sess.ensure_session()
+    sink = None
+    raw_file = None
+    if save_raw is not None:
+        save_raw.mkdir(parents=True, exist_ok=True)
+        raw_file = (save_raw / "traffic.jsonl").open("a", encoding="utf-8")
+        raw_file.write(json.dumps(await sess.auth_exchange(data)) + "\n")
+
+        def sink(entry: dict) -> None:
+            raw_file.write(json.dumps(entry) + "\n")
+            raw_file.flush()
+
     http_client = PointsYeahClient(
         data,
         limiter,
+        on_exchange=sink,
         refresh=lambda: sess.silent_refresh(data),
         on_progress=(lambda p: console.print(f"  [dim]{p}[/dim]")) if verbose else None,
     )
@@ -149,6 +162,8 @@ async def _run_search(
     try:
         res = await planner.run(q)
     finally:
+        if raw_file:
+            raw_file.close()
         await http_client.aclose()
         limiter.close()
         cache.close()
@@ -158,11 +173,17 @@ async def _run_search(
 
 
 def _search_one(
-    q: Query, settings: config.Settings, sort: str, top: int, verbose: bool, label: str
+    q: Query,
+    settings: config.Settings,
+    sort: str,
+    top: int,
+    verbose: bool,
+    label: str,
+    save_raw: Path | None = None,
 ) -> list[Itinerary] | None:
     console.rule(label)
     try:
-        _, res = asyncio.run(_run_search(q, settings, verbose=verbose))
+        _, res = asyncio.run(_run_search(q, settings, verbose=verbose, save_raw=save_raw))
     except sess.SessionError as e:
         _fail(str(e))
         return None
@@ -209,6 +230,11 @@ def search(
         "", "--return", help="Also plan the return one-way, YYYY-MM-DD."
     ),
     verbose: bool = typer.Option(False, "--verbose"),
+    save_raw: Path | None = typer.Option(
+        None,
+        "--save-raw",
+        help="Write raw API traffic here (UNSCRUBBED; run devtools.scrub before committing).",
+    ),
 ) -> None:
     """Direct, then ring-by-ring positioning search, ranked by effective cost."""
     settings = config.load_settings()
@@ -252,6 +278,7 @@ def search(
         top,
         verbose,
         f"{'/'.join(homes)} → {dest.upper()}  {day}",
+        save_raw,
     )
     if out is None:
         raise typer.Exit(1)
@@ -264,6 +291,7 @@ def search(
             top,
             verbose,
             f"{dest.upper()} → {homes[0]}  {return_date} (return)",
+            save_raw,
         )
         console.print(
             "[dim]Return plans direct only; positioning for returns is not searched yet.[/dim]"

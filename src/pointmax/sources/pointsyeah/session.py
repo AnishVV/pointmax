@@ -148,6 +148,25 @@ async def check_session(data: SessionData, client: httpx.AsyncClient | None = No
             await client.aclose()
 
 
+async def auth_exchange(data: SessionData) -> dict[str, Any]:
+    """The raw /api/auth/session exchange, for --save-raw (scrub needs the key section)."""
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+        resp = await client.get(
+            AUTH_URL,
+            headers={"User-Agent": data.user_agent, "Cookie": data.cookie_header()},
+        )
+    return {
+        "t": 0.0,
+        "at": datetime.now(UTC).isoformat(),
+        "method": "GET",
+        "url": AUTH_URL,
+        "status": resp.status_code,
+        "request_headers": {"user-agent": data.user_agent},
+        "request_body": None,
+        "response_body": resp.text,
+    }
+
+
 def apply_auth(data: SessionData, info: AuthInfo) -> SessionData:
     """Fresh key section and plan limits are always taken from the live response."""
     return data.model_copy(

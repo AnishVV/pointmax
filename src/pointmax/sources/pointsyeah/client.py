@@ -9,10 +9,12 @@ Cadence: ~2 s for a task's first 3 polls, then ~6 s, always through the shared l
 """
 
 import asyncio
+import json
 import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -98,6 +100,7 @@ class PointsYeahClient:
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         on_progress: Callable[[dict[str, Any]], None] | None = None,
+        on_exchange: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self.session = session
         self.limiter = limiter
@@ -106,6 +109,8 @@ class PointsYeahClient:
         self._refresh = refresh
         self._clock, self._sleep = clock, sleep
         self._progress = on_progress
+        self._on_exchange = on_exchange  # raw request/response sink for --save-raw
+        self._t0 = clock()
         self.requests_made = 0
 
     async def aclose(self) -> None:
@@ -134,6 +139,7 @@ class PointsYeahClient:
             except httpx.TransportError as e:
                 last = e
             else:
+                self._record(path, body, resp)
                 if resp.status_code == 429:
                     log.warning("429 from PointsYeah: cooling down %.0fs", COOLDOWN_429_S)
                     self.limiter.cooldown(COOLDOWN_429_S)
@@ -147,6 +153,28 @@ class PointsYeahClient:
                     return resp.json()
             await self._sleep(2.0 * (attempt + 1))
         raise ApiError(f"{path} failed after {RETRIES} tries: {last}")
+
+    def _record(self, path: str, body: dict[str, Any], resp: httpx.Response) -> None:
+        """Hand the raw exchange to the sink, in the format devtools.scrub reads."""
+        if self._on_exchange is None:
+            return
+        self._on_exchange(
+            {
+                "t": round(self._clock() - self._t0, 3),
+                "at": datetime.now(UTC).isoformat(),
+                "method": "POST",
+                "url": API_BASE + path,
+                "status": resp.status_code,
+                "request_headers": {
+                    "user-agent": self.session.user_agent,
+                    "origin": "https://www.pointsyeah.com",
+                    "referer": "https://www.pointsyeah.com/",
+                    "content-type": "application/json",
+                },
+                "request_body": json.dumps(body),
+                "response_body": resp.text,
+            }
+        )
 
     async def create_task(self, req: SearchRequest) -> tuple[str, int]:
         enc = crypto.encrypt_query(build_query(req), self.session.request_key_section)

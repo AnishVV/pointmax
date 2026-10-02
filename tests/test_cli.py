@@ -19,7 +19,7 @@ def home(tmp_path, monkeypatch):
 
 @pytest.fixture
 def fake_search(monkeypatch):
-    async def run(q, settings, *, verbose):
+    async def run(q, settings, *, verbose, save_raw=None):
         planner = Planner(FakeBackend(scenario()), settings, echo=cli.console.print)
         cli._live["planner"] = planner
         return planner, await planner.run(q)

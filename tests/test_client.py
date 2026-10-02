@@ -180,3 +180,35 @@ async def test_session_error_without_refresh_propagates():
     cl, _ = make()
     with pytest.raises(SessionError):
         await cl.run_tasks([REQ])
+
+
+@respx.mock
+async def test_on_exchange_traffic_feeds_scrubber(tmp_path):
+    import json
+
+    from pointmax.devtools import scrub
+
+    respx.post(CREATE).mock(return_value=httpx.Response(200, json=create_body("T9", 1)))
+    respx.post(FETCH).mock(
+        return_value=httpx.Response(200, json=fetch_body("done", [summary(routes=[route()])]))
+    )
+    log: list[dict] = []
+    cl, _ = make(on_exchange=log.append)
+    await cl.run_tasks([REQ])
+    auth = {
+        "t": 0,
+        "at": "2026-10-02T00:00:00+00:00",
+        "method": "GET",
+        "url": "https://www.pointsyeah.com/api/auth/session",
+        "status": 200,
+        "request_headers": {},
+        "request_body": None,
+        "response_body": json.dumps(
+            {"data": {"isAuthenticated": True, "requestKeySection": SECTION}}
+        ),
+    }
+    path = tmp_path / "traffic.jsonl"
+    path.write_text("".join(json.dumps(e) + "\n" for e in [auth, *log]))
+    scrub.build_fixtures(path, tmp_path / "fx", ["dfw-lhr"])
+    meta = json.loads((tmp_path / "fx" / "dfw-lhr" / "meta.json").read_text())
+    assert meta["browser_byte_match"] and meta["polls"] == 1 and meta["total_sub_tasks"] == 1
