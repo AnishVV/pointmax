@@ -130,6 +130,8 @@ class Itinerary(BaseModel):
     roles: list[Role]
     gateway: str | None = None
     ring: int = 0
+    hotel_nights: int = 0  # overnight in the gateway city; priced by the hotel allowance
+    notes: list[str] = Field(default_factory=list)
     value: ValueBreakdown | None = None
 
     @property

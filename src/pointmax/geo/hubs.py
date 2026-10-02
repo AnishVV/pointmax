@@ -48,3 +48,35 @@ DESTINATION_ALTERNATES: dict[str, tuple[str, ...]] = {
 
 def alliance_count(iata: str) -> int:
     return len(US_ALLIANCE_HUBS.get(iata, ()))
+
+
+# Airports that share a city: PointsYeah adds these automatically, and changing between them
+# between separate tickets needs the longer metro buffer.
+METRO_GROUPS: tuple[frozenset[str], ...] = tuple(
+    frozenset(g.split())
+    for g in (
+        "DFW DAL",
+        "IAH HOU",
+        "JFK EWR LGA",
+        "ORD MDW",
+        "DCA IAD BWI",
+        "LAX BUR LGB SNA ONT",
+        "SFO OAK SJC",
+        "MIA FLL",
+        "LHR LGW LCY STN",
+        "CDG ORY",
+        "NRT HND",
+    )
+)
+
+
+def metro_siblings(iata: str) -> frozenset[str]:
+    """Other airports in the same metro area (empty if none known)."""
+    for group in METRO_GROUPS:
+        if iata in group:
+            return group - {iata}
+    return frozenset()
+
+
+def same_metro(a: str, b: str) -> bool:
+    return a == b or b in metro_siblings(a)
