@@ -210,6 +210,7 @@ class Planner:
         best = min((i.value.c_eff for i in directs if i.value), default=None)
         reports.append(RingReport(0, list(q.homes), [], len(reqs), None, best))
         all_its = list(directs)
+        self.partial = SearchResult(all_its, reports, warnings)
 
         used: set[str] = set(q.homes)
         signal = cand.connection_signal(

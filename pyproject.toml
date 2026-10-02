@@ -42,3 +42,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/pointmax/cli.py" = ["B008"]  # typer.Option in defaults is the typer idiom
+"tests/*" = ["E501", "RUF001", "RUF003"]

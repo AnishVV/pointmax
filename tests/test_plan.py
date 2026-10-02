@@ -2,56 +2,14 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from synthetic import route, segment
+from synthetic import FakeBackend, opt, scenario
 
 from pointmax import config
 from pointmax.models import Cabin
 from pointmax.planner import plan as pl
 from pointmax.rank import filters as flt
-from pointmax.sources.base import SearchRequest
-from pointmax.sources.pointsyeah.normalize import normalize_routes
 
 S = config.load_settings(Path("/nonexistent.toml"))
-
-
-def opt(
-    program,
-    miles,
-    origin,
-    dest,
-    dep,
-    arr,
-    cabin="Business",
-    tax=6.0,
-    flight="XX1",
-    cash=None,
-    transfer=None,
-):
-    seg = segment(flight, origin, dest, dep, arr, cabin=cabin)
-    kw = {"cash_price": cash} if cash is not None else {}
-    return normalize_routes(
-        [route(program, miles, tax, cabin, date=dep[:10], segments=[seg], transfer=transfer, **kw)]
-    )[0]
-
-
-class FakeBackend:
-    max_date_range = 4
-
-    def __init__(self, data):
-        self.data = data  # {(origin, dest): [AwardOption]}
-        self.asked: list[SearchRequest] = []
-
-    async def search_many(self, requests, *, fresh=False):
-        out = {}
-        for r in requests:
-            self.asked.append(r)
-            out[r.key] = [
-                o for o in self.data.get((r.origin, r.dest), []) if r.start <= o.date <= r.end
-            ]
-        return out
-
-    def avg_polls_per_task(self):
-        return 5.0
 
 
 def query(**kw):
@@ -64,47 +22,6 @@ def query(**kw):
         yes=True,
     )
     return pl.Query(**(base | kw))
-
-
-def scenario():
-    return {
-        ("DFW", "LHR"): [
-            opt(
-                "Alaska Atmos Rewards",
-                275000,
-                "DFW",
-                "LHR",
-                "2026-12-23 17:00",
-                "2026-12-24 08:00",
-                flight="AS100",
-            )
-        ],
-        ("IAH", "LHR"): [
-            opt(
-                "Aeroplan",
-                60000,
-                "IAH",
-                "LHR",
-                "2026-12-23 18:00",
-                "2026-12-24 08:00",
-                tax=78.0,
-                flight="UA900",
-            )
-        ],
-        ("AUS", "IAH"): [
-            opt(
-                "United MileagePlus",
-                8000,
-                "AUS",
-                "IAH",
-                "2026-12-23 10:00",
-                "2026-12-23 11:10",
-                cabin="Economy",
-                tax=5.6,
-                flight="UA1",
-            )
-        ],
-    }
 
 
 async def test_positioning_beats_direct_and_gets_savings():

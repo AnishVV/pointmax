@@ -4,8 +4,16 @@ A command-line tool that finds the cheapest-in-real-terms way to fly somewhere o
 including itineraries that start with a separately ticketed positioning flight. It runs on
 PointsYeah's internal API with your own account.
 
-Status: **M0 (scaffold and fixtures)**. Commands exist but do nothing yet; see the
+Status: **built offline, not yet run against PointsYeah.** Login, client, ranking, positioning
+planner and CLI exist and are tested against synthetic data; every API field name is a guess
+until fixtures are recorded. See [docs/UNVERIFIED.md](docs/UNVERIFIED.md) and the
 [implementation plan](https://claude.ai/code/artifact/fd699a9c-7d0c-4bbe-b4ad-510ad4837329).
+
+```sh
+uv run pointmax login                       # or: login --from-chrome
+uv run pointmax search home LHR --date 2026-12-23 --flex 2 --cabin business
+uv run pointmax show 1
+```
 
 ## Setup
 
