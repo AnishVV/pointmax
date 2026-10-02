@@ -36,8 +36,8 @@ Record fixtures first (README, "Recording fixtures"); most items are then a diff
 
 ## Not built yet
 
-- `--save-raw DIR` (needs the scrubber's logic applied on the fly).
 - Positioning for the return leg: `--return` runs a direct-only search.
 - Ring 3 alternate destinations with a `position_in` leg: `alternate_destinations()` exists but the planner does not use it.
 - `pointmax login` has never opened a real browser; `silent_refresh` likewise.
-- Live tests (`pytest -m live`).
+- Extracting the default `data` key: `devtools/find_data_key.py` only prints bundle code, and has never reached the live site.
+- The live tests (`pytest -m live`) are written but have never run.
