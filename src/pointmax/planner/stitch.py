@@ -24,9 +24,8 @@ def feasibility(
         return False, 0, None
     if isinstance(pos, CashLeg):
         arr = pos.arr
-        if arr is None:  # an estimate with no times: assume it can be scheduled
-            nights = 1 if pos.date < main.dep.date() else 0
-            return True, nights, "overnight in gateway" if nights else None
+        if arr is None:  # an estimate with no times: assume it can be scheduled same day
+            return True, 0, None
     else:
         arr = pos.arr
     if arr is None:

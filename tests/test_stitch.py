@@ -61,7 +61,7 @@ def test_more_than_24h_rejected():
 def test_cash_leg_estimate_without_times():
     leg = CashLeg(origin="AUS", dest="IAH", date=date(2026, 12, 22), price_usd=120)
     ok, nights, _ = st.feasibility(leg, main_at(), S)
-    assert ok and nights == 1
+    assert ok and nights == 0
 
 
 def test_stitch_cross_join_drops_infeasible():
