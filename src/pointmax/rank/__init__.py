@@ -1,0 +1,1 @@
+"""Ranking by effective cost."""

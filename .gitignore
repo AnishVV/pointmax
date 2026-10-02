@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+# Raw, unscrubbed captures never enter the repo; only scrubbed fixtures do.
+captures/
+session.json
