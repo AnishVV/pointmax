@@ -19,8 +19,7 @@ uv run pointmax --help
 ## Development
 
 ```sh
-uv run ruff check . && uv run ruff format --check .
-uv run pytest              # offline tests (CI runs these)
+scripts/check.sh           # lint, format check, offline tests (run before every push)
 uv run pytest -m live      # live tests; need a PointsYeah session (from M1)
 ```
 

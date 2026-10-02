@@ -1,8 +1,8 @@
 name: CI
 
+# Manual-only until GitHub Actions runs on this account; restore push/pull_request then.
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
