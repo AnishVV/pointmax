@@ -124,6 +124,9 @@ class Settings:
         lower = {k.lower(): v for k, v in self.cpp.items()}
         return lower.get(currency.lower(), lower.get("default", 1.2))
 
+    def has_cpp(self, currency: str) -> bool:
+        return currency.lower() in {k.lower() for k in self.cpp if k != "default"}
+
     def cash_estimate(self, km: float) -> float:
         for max_km, usd in self.distance_bands:
             if km <= max_km:

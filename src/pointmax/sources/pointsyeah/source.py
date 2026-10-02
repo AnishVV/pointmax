@@ -8,6 +8,7 @@ from pointmax.sources.base import SearchRequest
 from pointmax.sources.pointsyeah.client import PointsYeahClient
 from pointmax.sources.pointsyeah.normalize import normalize_routes
 from pointmax.sources.pointsyeah.raw import SchemaWarnings
+from pointmax.sources.pointsyeah.session import SessionError
 
 DEFAULT_MAX_DATE_RANGE = 4  # free plan, one-way
 
@@ -52,4 +53,7 @@ class PointsYeahBackend:
                 self.cache.record_task(t.polls, elapsed / max(len(tasks), 1))
                 out[t.request.key] = options
                 self.live_searches += 1
+            if self.client.session_dead:
+                # finished searches are already cached; stop the whole plan cleanly
+                raise SessionError("Session expired mid-search. Run `pointmax login` and re-run.")
         return out

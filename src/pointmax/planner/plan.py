@@ -262,7 +262,7 @@ class Planner:
             ]
             best = min(costs) if costs else None
             report.best_after = best
-            prev_gain = report.gain_pct or 0.0
+            prev_gain = report.gain_pct  # None (no baseline) keeps the next ring automatic
             reports.append(report)
 
         val.apply_savings(all_its)

@@ -19,6 +19,8 @@ Record fixtures first (README, "Recording fixtures"); most items are then a diff
 | Duration unit | minutes | `normalize` | compare with a segment sum |
 | Time format | ISO-like local times without zone | `normalize.parse_dt` | fixture |
 
+- Bank and program names: `config [cpp]` keys ("Chase Ultimate Rewards", "Aeroplan", ...) must match the strings PointsYeah returns in `transfer[].bank` and `program`. A mismatch silently falls back to the 1.2c default, so it now adds a `default-cpp` note to the result; check those notes on the first real run.
+
 ## Open questions from the plan that code currently assumes
 
 - Per-person vs total miles for `--pax 2`: assumed per person (multiply). `Query.pax_totals` flips it. (M2 check)

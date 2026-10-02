@@ -33,3 +33,10 @@ def test_known_answer():
     assert kat["browser_byte_match"]
     assert crypto.serialize(json.loads(kat["plaintext"])) == kat["plaintext"]
     assert crypto.encrypt_text(kat["plaintext"], kat["section"]) == kat["ciphertext"]
+
+
+def test_invalid_section_gives_clear_error():
+    with pytest.raises(ValueError, match="requestKeySection"):
+        crypto.derive_key("not base64!")
+    with pytest.raises(ValueError, match="AES needs"):
+        crypto.derive_key("AAAA")  # decodes to a key whose length is not 16/24/32

@@ -74,6 +74,13 @@ def find_key(obj: Any, key: str) -> Any:
     return None
 
 
+def _as_int(value: Any) -> int | None:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return None
+
+
 def parse_auth(payload: Any) -> AuthInfo:
     authed = find_key(payload, "isAuthenticated")
     section = find_key(payload, "requestKeySection")
@@ -83,9 +90,7 @@ def parse_auth(payload: Any) -> AuthInfo:
         authenticated=bool(authed) and bool(section),
         request_key_section=str(section or ""),
         user_id=str(uid or ""),
-        max_date_range=int(mdr)
-        if isinstance(mdr, int | float | str) and str(mdr).isdigit()
-        else None,
+        max_date_range=_as_int(mdr),
         raw=payload if isinstance(payload, dict) else {},
     )
 
@@ -142,7 +147,10 @@ async def check_session(data: SessionData, client: httpx.AsyncClient | None = No
         if resp.status_code in (401, 403):
             return AuthInfo(authenticated=False)
         resp.raise_for_status()
-        return parse_auth(resp.json())
+        try:
+            return parse_auth(resp.json())
+        except ValueError:  # an HTML login page instead of JSON means "not signed in"
+            return AuthInfo(authenticated=False)
     finally:
         if own:
             await client.aclose()

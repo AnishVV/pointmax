@@ -182,11 +182,15 @@ def _search_one(
     save_raw: Path | None = None,
 ) -> list[Itinerary] | None:
     console.rule(label)
+    _live.pop("planner", None)
     try:
         _, res = asyncio.run(_run_search(q, settings, verbose=verbose, save_raw=save_raw))
     except sess.SessionError as e:
-        _fail(str(e))
-        return None
+        console.print(f"[red]{e}[/red]")
+        live = _live.get("planner")
+        if live is None:  # no session at all: nothing to show
+            return None
+        res = live.partial
     except KeyboardInterrupt:
         console.print(
             "\n[yellow]Interrupted. Showing what was found so far (it is all cached).[/yellow]"

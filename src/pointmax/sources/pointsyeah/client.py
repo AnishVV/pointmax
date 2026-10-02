@@ -112,6 +112,7 @@ class PointsYeahClient:
         self._on_exchange = on_exchange  # raw request/response sink for --save-raw
         self._t0 = clock()
         self.requests_made = 0
+        self.session_dead = False  # set once a refresh fails; later calls fail fast
 
     async def aclose(self) -> None:
         if self._own_http:
@@ -148,8 +149,9 @@ class PointsYeahClient:
                     raise SessionError(f"HTTP {resp.status_code} from PointsYeah")
                 elif resp.status_code >= 500:
                     last = ApiError(f"HTTP {resp.status_code}")
+                elif resp.status_code >= 400:
+                    raise ApiError(f"HTTP {resp.status_code} from {path}")
                 else:
-                    resp.raise_for_status()
                     return resp.json()
             await self._sleep(2.0 * (attempt + 1))
         raise ApiError(f"{path} failed after {RETRIES} tries: {last}")
@@ -182,20 +184,32 @@ class PointsYeahClient:
         # whether the server accepts `data == encrypted` (open question in the plan).
         body = await self._post(CREATE_PATH, {"data": enc, "encrypted": enc})
         if raw.response_code(body) != 0:
-            raise SessionError(f"create_task returned code {raw.response_code(body)}")
+            msg = body.get("message") or body.get("msg") or "" if isinstance(body, dict) else ""
+            raise SessionError(f"create_task returned code {raw.response_code(body)} {msg}".strip())
         return raw.parse_create(body)
 
     async def fetch_result(self, task_id: str) -> Any:
         return await self._post(FETCH_PATH, {"task_id": task_id})
 
-    async def _create_with_refresh(self, req: SearchRequest) -> tuple[str, int]:
+    async def _with_refresh(self, call: Callable[[], Awaitable[Any]]) -> Any:
+        """Run `call`; on a session error refresh once and retry, else mark the session dead."""
+        if self.session_dead:
+            raise SessionError("Session expired. Run `pointmax login`.")
         try:
-            return await self.create_task(req)
+            return await call()
         except SessionError:
             if self._refresh is None:
+                self.session_dead = True
                 raise
-            self.session = await self._refresh()
-            return await self.create_task(req)
+            try:
+                self.session = await self._refresh()
+                return await call()
+            except SessionError:
+                self.session_dead = True
+                raise
+
+    async def _create_with_refresh(self, req: SearchRequest) -> tuple[str, int]:
+        return await self._with_refresh(lambda: self.create_task(req))
 
     # ---- poller --------------------------------------------------------------------------
 
@@ -235,9 +249,12 @@ class PointsYeahClient:
         for t in tasks:
             try:
                 t.task_id, t.total = await self._create_with_refresh(t.request)
-            except (ApiError, SessionError, ValueError) as e:
-                if isinstance(e, SessionError):
-                    raise
+            except SessionError as e:
+                for rest in tasks:
+                    if not rest.task_id:
+                        rest.error = str(e)
+                break
+            except (ApiError, ValueError) as e:
                 t.error = str(e)
                 continue
             t.started = self._clock()
@@ -252,7 +269,11 @@ class PointsYeahClient:
             if (wait := t.next_poll - self._clock()) > 0:
                 await self._sleep(wait)
             try:
-                body = await self.fetch_result(t.task_id)
+                body = await self._with_refresh(lambda tid=t.task_id: self.fetch_result(tid))
+            except SessionError as e:
+                for rest in open_tasks:
+                    rest.error = str(e)
+                break
             except ApiError as e:
                 t.error = str(e)
                 continue

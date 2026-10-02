@@ -18,7 +18,13 @@ IV = b"1020304050607080"
 
 
 def derive_key(section: str) -> bytes:
-    return base64.b64decode(f"{KEY_PREFIX}{section}{KEY_SUFFIX}", validate=True)
+    try:
+        key = base64.b64decode(f"{KEY_PREFIX}{section}{KEY_SUFFIX}", validate=True)
+    except ValueError as e:
+        raise ValueError(f"requestKeySection {section!r} does not give a valid base64 key") from e
+    if len(key) not in (16, 24, 32):
+        raise ValueError(f"derived key is {len(key)} bytes; AES needs 16, 24 or 32")
+    return key
 
 
 def serialize(query: Any) -> str:

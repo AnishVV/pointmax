@@ -117,3 +117,17 @@ def test_windows_for():
         (d(2026, 12, 23), d(2026, 12, 23)),
         (d(2026, 12, 27), d(2026, 12, 27)),
     ]
+
+
+async def test_ring0_empty_then_ring1_finds_continues_without_prompt():
+    data = scenario()
+    del data[("DFW", "LHR")]
+    asked = []
+
+    async def ask(prompt):
+        asked.append(prompt)
+        return True
+
+    res = await pl.Planner(FakeBackend(data), S, ask=ask).run(query(yes=False, rings=2))
+    assert res.rings[0].best_after is None and res.rings[1].best_after is not None
+    assert asked == []  # no baseline to compare against, so ring 2 is automatic

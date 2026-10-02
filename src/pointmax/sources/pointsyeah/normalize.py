@@ -129,6 +129,9 @@ def normalize_route(
         flags.add("currency_converted")
     cash = pay.cash_price * rate if pay.cash_price else None
 
+    if not raw.duration:
+        # local times at both ends differ by time zone, so this is only a rough lower bound
+        flags.add("duration_estimated")
     day = parse_date(raw.date) or segments[0].dep.date()
     return AwardOption(
         program=raw.program or "",

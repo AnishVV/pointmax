@@ -2,14 +2,13 @@ from datetime import date
 from itertools import pairwise
 
 import httpx
-import pytest
 import respx
 from synthetic import create_body, fetch_body, route, summary
 
 from pointmax.ratelimit import RateLimiter
 from pointmax.sources.base import SearchRequest
 from pointmax.sources.pointsyeah import client as c
-from pointmax.sources.pointsyeah.session import SessionData, SessionError
+from pointmax.sources.pointsyeah.session import SessionData
 
 SECTION = "AbCd1234"
 CREATE = c.API_BASE + c.CREATE_PATH
@@ -175,11 +174,47 @@ async def test_session_refresh_once_then_retry():
 
 
 @respx.mock
-async def test_session_error_without_refresh_propagates():
-    respx.post(CREATE).mock(return_value=httpx.Response(403))
+async def test_dead_session_marks_tasks_and_fails_fast():
+    r = respx.post(CREATE).mock(return_value=httpx.Response(403))
+    other = REQ.model_copy(update={"origin": "AUS"})
     cl, _ = make()
-    with pytest.raises(SessionError):
-        await cl.run_tasks([REQ])
+    tasks = await cl.run_tasks([REQ, other])
+    assert cl.session_dead and all("HTTP 403" in t.error or "expired" in t.error for t in tasks)
+    assert r.call_count == 1  # the second task never hit the network
+
+
+@respx.mock
+async def test_session_expires_mid_poll_refreshes_once():
+    respx.post(CREATE).mock(return_value=httpx.Response(200, json=create_body("T1", 1)))
+    respx.post(FETCH).mock(
+        side_effect=[httpx.Response(401), httpx.Response(200, json=fetch_body("done", [summary()]))]
+    )
+    calls = []
+
+    async def refresh():
+        calls.append(1)
+        return SessionData(request_key_section=SECTION, cookies=[{"name": "sid", "value": "n"}])
+
+    cl, _ = make(refresh=refresh)
+    [t] = await cl.run_tasks([REQ])
+    assert calls == [1] and t.stop_reason == "complete"
+
+
+@respx.mock
+async def test_4xx_is_a_task_error_not_a_crash():
+    respx.post(CREATE).mock(return_value=httpx.Response(200, json=create_body("T1", 1)))
+    respx.post(FETCH).mock(return_value=httpx.Response(404))
+    cl, _ = make()
+    [t] = await cl.run_tasks([REQ])
+    assert "404" in t.error
+
+
+@respx.mock
+async def test_nonzero_code_is_reported_with_message():
+    respx.post(CREATE).mock(return_value=httpx.Response(200, json={"code": 7, "message": "quota"}))
+    cl, _ = make()
+    [t] = await cl.run_tasks([REQ])
+    assert "code 7" in t.error and "quota" in t.error
 
 
 @respx.mock

@@ -61,11 +61,20 @@ def itinerary_ok(it: Itinerary, f: Filters) -> bool:
 
 SORTS: dict[str, Callable[[Itinerary], tuple]] = {
     "eff": lambda i: (i.value.c_eff, _hours(i), i.main.stops),
-    "cpp": lambda i: (-(i.value.legs[-1].redemption_cpp or 0) if i.value else 0,),
+    "cpp": lambda i: (-_main_cpp(i), i.value.c_eff),
     "miles": lambda i: (sum(o.miles for o in i.award_legs), i.value.c_eff),
     "duration": lambda i: (_hours(i), i.value.c_eff),
     "taxes": lambda i: (sum(o.taxes_usd for o in i.award_legs), i.value.c_eff),
 }
+
+
+def _main_cpp(it: Itinerary) -> float:
+    if it.value is None:
+        return 0.0
+    for lv, role in zip(it.value.legs, it.roles, strict=True):
+        if role == "main":
+            return lv.redemption_cpp or 0.0
+    return 0.0
 
 
 def _hours(it: Itinerary) -> float:

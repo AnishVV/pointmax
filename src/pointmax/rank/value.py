@@ -22,6 +22,7 @@ def _bonus_text(pct: int, ends: object) -> str:
 def best_funding(opt: AwardOption, s: Settings, mult: int) -> tuple[str, float, str | None]:
     """(label, points cost in USD, note) for the cheapest way to fund this award."""
     candidates: list[tuple[float, float, str]] = []  # (comparison cost, real cost, label)
+    unvalued = [tr.bank for tr in opt.transfers if not s.has_cpp(tr.bank)]
     for tr in opt.transfers:
         cost = tr.points * mult * s.cpp_for(tr.bank) / 100
         cmp_cost = cost * (1 - s.prefer_tiebreak_pct / 100) if tr.bank in s.prefer_banks else cost
@@ -34,7 +35,10 @@ def best_funding(opt: AwardOption, s: Settings, mult: int) -> tuple[str, float, 
             break
     if candidates:
         _, cost, label = min(candidates, key=lambda c: c[0])
-        return label, cost, None
+        note = None
+        if unvalued and any(label.startswith(b) for b in unvalued):
+            note = f"default-cpp: {label.split(' +')[0]} has no value in config [cpp]"
+        return label, cost, note
     cost = opt.miles * mult * s.cpp_for(opt.program) / 100
     return f"{opt.program} miles (no transfer path)", cost, "no-transfer"
 

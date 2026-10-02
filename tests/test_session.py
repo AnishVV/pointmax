@@ -73,3 +73,28 @@ async def test_ensure_session_expired(tmp_path, monkeypatch):
     respx.get(s.AUTH_URL).mock(return_value=httpx.Response(401))
     with pytest.raises(s.SessionError, match="expired"):
         await s.ensure_session(path=p)
+
+
+def test_parse_auth_handles_float_and_string_limits():
+    assert (
+        s.parse_auth(
+            {"data": {"isAuthenticated": True, "requestKeySection": "x", "maxDateRange": 4.0}}
+        ).max_date_range
+        == 4
+    )
+    assert (
+        s.parse_auth(
+            {"data": {"isAuthenticated": True, "requestKeySection": "x", "maxDateRange": "7"}}
+        ).max_date_range
+        == 7
+    )
+    assert (
+        s.parse_auth({"data": {"isAuthenticated": True, "requestKeySection": "x"}}).max_date_range
+        is None
+    )
+
+
+@respx.mock
+async def test_html_login_page_means_not_authenticated():
+    respx.get(s.AUTH_URL).mock(return_value=httpx.Response(200, text="<html>sign in</html>"))
+    assert not (await s.check_session(_data())).authenticated

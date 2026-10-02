@@ -156,3 +156,18 @@ def test_sorting_ties_and_keys():
     assert flt.sort_itineraries([a, b], "miles")[0] is b
     with pytest.raises(ValueError):
         flt.sort_itineraries([a], "nope")
+
+
+def test_sort_by_cpp_uses_the_main_leg():
+    cheap_cpp = direct(opt(miles=60000, tax=78.0, cash_price=1500.0))
+    high_cpp = direct(opt(miles=60000, tax=78.0, cash_price=5000.0))
+    for it in (cheap_cpp, high_cpp):
+        it.value = v.value_itinerary(it, S)
+    assert flt.sort_itineraries([cheap_cpp, high_cpp], "cpp")[0] is high_cpp
+
+
+def test_unvalued_bank_is_noted_not_silent():
+    o = opt(miles=60000, transfer=[{"bank": "Mystery Bank", "points": 60000}])
+    val = v.value_itinerary(direct(o), S)
+    assert val.c_eff == pytest.approx(60000 * 0.012 + 78.0)  # default 1.2c
+    assert any("default-cpp" in n and "Mystery Bank" in n for n in val.notes)
