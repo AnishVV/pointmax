@@ -52,19 +52,21 @@ dominance_pct = 10        # a self-built itinerary must beat a single ticket by 
 
 # Cents per point/mile. UNVERIFIED placeholders: set your own valuations.
 [cpp]
+# Bank currencies (names as PointsYeah reports them)
 "Chase Ultimate Rewards" = 2.0
-"Amex Membership Rewards" = 2.0
+"American Exp Membership Rewards" = 2.0
 "Citi ThankYou" = 1.8
 "Capital One" = 1.8
 "Bilt" = 2.0
-"Wells Fargo Rewards" = 1.6
-"Aeroplan" = 1.5
-"Flying Blue" = 1.3
-"AAdvantage" = 1.6
+"WF" = 1.6
+"US Bank" = 1.5
+# Airline programs (names as PointsYeah reports them), valued for your own miles
+"Air Canada Aeroplan" = 1.5
+"Air France/KLM Flying Blue" = 1.3
+"American Airlines AAdvantage" = 1.6
 "Alaska Atmos Rewards" = 1.5
 "United MileagePlus" = 1.3
 "Delta SkyMiles" = 1.2
-"British Airways Avios" = 1.3
 "Virgin Atlantic Flying Club" = 1.4
 "default" = 1.2           # any program not listed above
 

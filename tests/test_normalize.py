@@ -34,7 +34,7 @@ def test_low_seats_and_bonus_flags():
                 "points": 60000,
                 "actual_points": 50000,
                 "bonus_percentage": 20,
-                "bonus_end": "2026-10-15",
+                "bonus_end_date": 1792108799,
             }
         ],
     )
@@ -78,11 +78,38 @@ def test_unknown_field_warns_once_but_keeps_route():
     assert raw is not None and any("mystery_field" in m for m in w.seen)
 
 
-def test_alternate_spellings_accepted():
-    r = route()
-    r["payment"] = {"cabin": "Business", "points": 70000, "taxes": 12.5, "currency": "USD"}
+def test_seats_int_string_and_sentinel():
+    assert one(seats=3).seats == 3
+    assert one(seats="4").seats == 4
+    assert one(seats=9999).seats is None
+    assert one(seats="9999").seats is None
+
+
+def test_zero_cash_price_and_empty_promo_are_none():
+    r = route(cash_price=0)
+    r["promotion"] = {"description": "", "url": ""}
     o = normalize_routes([r])[0]
-    assert o.miles == 70000 and o.taxes_usd == 12.5
+    assert o.cash_price_usd is None and o.buy_promo is None
+
+
+def test_float_fields_and_real_duration():
+    r = route()
+    r["duration"] = 709.0
+    r["premium_cabin_percentage"] = 74.5
+    r["segments"][0]["layover"] = 96.0
+    o = normalize_routes([r])[0]
+    assert o.duration_min == 709 and o.premium_pct == 74.5
+    assert "duration_estimated" not in o.flags and o.segments[0].layover_min == 96
+
+
+def test_fare_brand_segment_cabin_does_not_reject_economy():
+    from pointmax.models import Cabin
+    from pointmax.rank.filters import cabin_ok
+
+    r = route(cabin="Economy", segments=[segment(cabin="Main Basic")])
+    assert cabin_ok(normalize_routes([r])[0], Cabin.ECONOMY, 60)
+    r = route(cabin="Economy", segments=[segment(cabin="Comfort")])
+    assert cabin_ok(normalize_routes([r])[0], Cabin.ECONOMY, 60)
 
 
 def test_unknown_currency_flagged():

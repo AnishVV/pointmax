@@ -22,7 +22,7 @@ class Cabin(IntEnum):
             return cls.FIRST
         if t.startswith(("business", "biz", "j")):
             return cls.BUSINESS
-        if t.startswith(("econ", "coach", "main", "y")):
+        if t.startswith(("econ", "coach", "main", "basic", "blue", "y")):
             return cls.ECONOMY
         raise ValueError(f"Unknown cabin {text!r}")
 
@@ -61,7 +61,7 @@ class AwardOption(BaseModel):
     segments: list[FlightSegment] = Field(default_factory=list)
     duration_min: int = 0
     stops: int = 0
-    premium_pct: int = 0
+    premium_pct: float = 0.0
     booking_url: str = ""
     transfers: list[TransferPath] = Field(default_factory=list)
     buy_promo: str | None = None

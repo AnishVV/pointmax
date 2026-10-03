@@ -18,6 +18,24 @@ RATES_TO_USD: dict[str, float] = {"USD": 1.0}
 NOT_LIVE_SEATS = 9999
 
 
+def parse_seats(value: int | str | None) -> int | None:
+    """Seats arrive as an int or a numeric string; 9999 means the count is not live."""
+    try:
+        n = int(value) if value is not None else None
+    except ValueError:
+        return None
+    return None if n is None or n == NOT_LIVE_SEATS or n < 0 else n
+
+
+def epoch_date(value: float | None) -> date | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromtimestamp(value, UTC).date()
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
 def parse_dt(text: str | None) -> datetime | None:
     if not text:
         return None
@@ -75,20 +93,20 @@ def normalize_route(
     segments: list[FlightSegment] = []
     for s in raw.segments:
         dep, arr = parse_dt(s.dt), parse_dt(s.at)
-        if dep is None or arr is None or not s.origin or not s.dest:
+        if dep is None or arr is None or not s.da or not s.aa:
             warnings.warn("segment missing times or airports; route skipped")
             return None
         segments.append(
             FlightSegment(
-                flight_no=(s.flight_no or "").replace(" ", ""),
-                carrier=s.carrier or (s.flight_no or "")[:2],
-                origin=s.origin,
-                dest=s.dest,
+                flight_no=(s.flight_number or "").replace(" ", ""),
+                carrier=(s.flight_number or "")[:2],
+                origin=s.da,
+                dest=s.aa,
                 dep=dep,
                 arr=arr,
                 cabin=s.cabin or pay.cabin or "",
-                aircraft=s.aircraft or "",
-                layover_min=s.layover or 0,
+                aircraft=(s.aircraft or "").strip(),
+                layover_min=round(s.layover or 0),
             )
         )
     flags: set[str] = set()
@@ -99,25 +117,23 @@ def normalize_route(
     if is_self_transfer(segments):
         flags.add("self_transfer")
 
-    seats = raw.seats if raw.seats not in (None, NOT_LIVE_SEATS) else None
+    seats = parse_seats(pay.seats)
     if seats is not None and seats <= 4:
         flags.add("low_seats")
 
     transfers = []
     for tr in raw.transfer:
-        pts = tr.actual_points or tr.points
+        pts = round(tr.actual_points or tr.points or 0)
         if not tr.bank or not pts:
             continue
-        pct = tr.bonus_percentage or 0
+        pct = round(tr.bonus_percentage or 0)
         if pct > 0:
             flags.add("bonus")
         transfers.append(
             TransferPath(
-                bank=tr.bank, points=pts, bonus_pct=pct, bonus_ends=parse_date(tr.bonus_end)
+                bank=tr.bank, points=pts, bonus_pct=pct, bonus_ends=epoch_date(tr.bonus_end_date)
             )
         )
-    if (raw.bonus_percentage or 0) > 0:
-        flags.add("bonus")
 
     currency = (pay.currency or "USD").upper()
     rate = RATES_TO_USD.get(currency)
@@ -135,7 +151,7 @@ def normalize_route(
     day = parse_date(raw.date) or segments[0].dep.date()
     return AwardOption(
         program=raw.program or "",
-        program_code=raw.program_code or "",
+        program_code=raw.code or "",
         origin=segments[0].origin,
         dest=segments[-1].dest,
         date=day,
@@ -145,13 +161,14 @@ def normalize_route(
         cash_price_usd=cash,
         seats=seats,
         segments=segments,
-        duration_min=raw.duration
-        or int((segments[-1].arr - segments[0].dep).total_seconds() // 60),
+        duration_min=round(raw.duration)
+        if raw.duration
+        else int((segments[-1].arr - segments[0].dep).total_seconds() // 60),
         stops=len(segments) - 1,
-        premium_pct=raw.premium_pct or 0,
-        booking_url=raw.booking_url or "",
+        premium_pct=raw.premium_cabin_percentage or 0.0,
+        booking_url=raw.url or "",
         transfers=transfers,
-        buy_promo=raw.promotion.description if raw.promotion else None,
+        buy_promo=(raw.promotion.description or None) if raw.promotion else None,
         flags=flags,
         fetched_at=fetched_at or datetime.now(UTC).replace(tzinfo=None),
     )

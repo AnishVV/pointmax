@@ -37,7 +37,7 @@ def test_cheapest_funding_path_with_bonus_label():
                 "points": 60000,
                 "actual_points": 50000,
                 "bonus_percentage": 20,
-                "bonus_end": "2026-10-15",
+                "bonus_end_date": 1792108799,
             },
         ],
     )
@@ -49,7 +49,7 @@ def test_own_miles_only_if_balance_listed():
     o = opt(miles=60000, transfer=[{"bank": "Chase Ultimate Rewards", "points": 60000}])
     assert v.best_funding(o, S, 1)[1] == pytest.approx(1200.0)  # own miles at 1.5c ignored
     s2 = config.load_settings(Path("/nonexistent.toml"))
-    s2.balances = {"Aeroplan": 100000}
+    s2.balances = {"Air Canada Aeroplan": 100000}
     label, usd, _ = v.best_funding(o, s2, 1)
     assert usd == pytest.approx(900.0) and "balance" in label
 
@@ -127,9 +127,9 @@ def test_cabin_filter_mixed_itinerary():
         segment("AA2", "ORD", "LHR", cabin="Economy", dt="2026-12-23 12:00", at="2026-12-24 02:00"),
     ]
     r = route(cabin="Business", segments=segs)
-    r["premium_pct"] = 40
+    r["premium_cabin_percentage"] = 40
     assert not flt.cabin_ok(normalize_routes([r])[0], flt.Cabin.BUSINESS, 60)
-    r["premium_pct"] = 70
+    r["premium_cabin_percentage"] = 70
     assert flt.cabin_ok(normalize_routes([r])[0], flt.Cabin.BUSINESS, 60)
 
 

@@ -31,7 +31,7 @@ def cabin_ok(opt: AwardOption, want: Cabin, min_premium: int) -> bool:
         try:
             return Cabin.parse(c) >= want
         except ValueError:
-            return False
+            return True  # a fare brand ("Comfort"): the headline cabin already passed
 
     all_seg = bool(opt.segments) and all(seg_ok(s.cabin or opt.cabin) for s in opt.segments)
     return all_seg or opt.premium_pct >= min_premium
