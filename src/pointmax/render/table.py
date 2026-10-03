@@ -159,3 +159,41 @@ def render_results(console: Console, res: SearchResult, ranked: list[Itinerary],
     console.print(ring_table(res))
     for w in res.warnings:
         console.print(f"[yellow]{w}[/yellow]")
+
+
+def history_table(runs: list[dict]) -> Table:
+    """Past runs from the search history, newest first."""
+    t = Table(title="Search history", header_style="bold")
+    for col, just in [
+        ("ID", "right"),
+        ("When", "left"),
+        ("Route", "left"),
+        ("Dates", "left"),
+        ("Cabin", "left"),
+        ("Pax", "right"),
+        ("Results", "right"),
+        ("Best eff. $", "right"),
+        ("Best program", "left"),
+        ("Status", "left"),
+    ]:
+        t.add_column(col, justify=just)  # type: ignore[arg-type]
+    for r in runs:
+        dates = r["depart_start"]
+        if r["depart_end"] != r["depart_start"]:
+            dates += f"…{r['depart_end'][5:]}"
+        route = f"{r['origins'].replace(',', '/')}→{r['dest']}"
+        if r["leg"] == "return":
+            route += " (return)"
+        t.add_row(
+            str(r["run_id"]),
+            r["at"][:16].replace("T", " "),
+            route,
+            dates,
+            r["cabin"] or "any",
+            str(r["pax"]),
+            str(r["n_results"]),
+            f"${r['best_eff_usd']:,.0f}" if r["best_eff_usd"] is not None else "—",
+            r["best_program"] or "—",
+            "" if r["status"] == "ok" else r["status"],
+        )
+    return t
