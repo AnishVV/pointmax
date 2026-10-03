@@ -1,7 +1,8 @@
 # Things to verify against live data
 
-The API shapes are now verified against recorded fixtures (first section). The rest was built
-from the plan's recon notes and best-knowledge defaults, without the reference docs.
+The API shapes are now verified against recorded fixtures (first section). Hubs and
+cents-per-point defaults now follow the reference docs (second section). The rest is still
+best-knowledge defaults.
 
 ## Confirmed from recorded fixtures (2026-10-03, tests/fixtures)
 
@@ -23,6 +24,14 @@ Verified against three recordings (dfw-lhr, dfw-amd, multi-city) and covered by 
 | Alternate airports | a DFW search also returns DAL; an LHR search rarely returns LGW/LCY; metro siblings do appear | `geo/hubs.METRO_GROUPS` |
 | Names | banks: Bilt, Chase Ultimate Rewards, American Exp Membership Rewards, Capital One, Citi ThankYou, US Bank, WF. 17 programs seen, e.g. "Air Canada Aeroplan", "Air France/KLM Flying Blue" | `config [cpp]` |
 
+## Taken from the reference docs (2026-10-03)
+
+| Area | Source | Where |
+| --- | --- | --- |
+| US alliance hubs: added LGA, CVG, PDX, SAN, ANC; SFO is Star Alliance only | hubs-alliances-carriers.md | `geo/hubs.US_ALLIANCE_HUBS` |
+| Stopover hubs (KEF, IST, DXB, DOH, AUH, SIN, PTY, LIS) | reference README, rule 9 | `geo/hubs.STOPOVER_HUBS` |
+| Cents-per-point baselines for 5 banks and 11 programs (Sept. 2026 snapshot, re-pull monthly) | point-valuations-and-transfer-partners.md | `config [cpp]` |
+
 ## Still unverified
 
 | Area | Assumption | Where | How to confirm |
@@ -40,8 +49,8 @@ Verified against three recordings (dfw-lhr, dfw-amd, multi-city) and covered by 
 
 ## Defaults I made up
 
-- `config.DEFAULT_TOML`: every cents-per-point value, distance bands, hotel allowance (150), drive cost per km, buffers (3 h, 4 h, 24 h). Review before trusting rankings.
-- `geo/hubs.py`: alliance hubs, stopover hubs, destination alternates, metro groups, from general knowledge, not `hubs-alliances-carriers.md`.
+- `config.DEFAULT_TOML`: WF and US Bank cents-per-point (not in the valuations doc), distance bands, hotel allowance (150), drive cost per km, buffers (3 h, 4 h, 24 h; the README only says 3–4+ h). Review before trusting rankings.
+- `geo/hubs.py`: destination alternates, metro groups, and the YUL/YVR/MEX gateways (the doc names only YYZ).
 - Ring scoring weights in `planner/candidates.py` (connection signal x3, +1 for large airports, distance penalty 1 per 1000 km).
 - Request budget: 10 requests per minute (the 50 per 5 min limit) for time quotes.
 
