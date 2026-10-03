@@ -1,0 +1,15 @@
+{
+  "label": "dfw-lhr",
+  "captured_at": "2026-10-03T02:26:37.846102+00:00",
+  "task_id": "27c75125c9e74ebcbb1ea729c69e3e89",
+  "total_sub_tasks": 54,
+  "polls": 37,
+  "browser_byte_match": true,
+  "reencrypt_match": true,
+  "data_equals_encrypted": false,
+  "request_headers": {
+    "referer": "https://www.pointsyeah.com/",
+    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    "content-type": "application/json"
+  }
+}

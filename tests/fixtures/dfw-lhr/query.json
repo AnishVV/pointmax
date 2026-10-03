@@ -1,0 +1,24 @@
+{
+  "search_type": "one_way",
+  "cabins": [
+    "Economy",
+    "Premium Economy",
+    "Business",
+    "First"
+  ],
+  "segments": [
+    {
+      "arrival": "LHR",
+      "departure": "DFW",
+      "departure_date": {
+        "from": "2026-11-09",
+        "to": "2026-11-11"
+      }
+    }
+  ],
+  "passengers_v2": {
+    "adults": 1,
+    "children": 0
+  },
+  "source": "pc"
+}

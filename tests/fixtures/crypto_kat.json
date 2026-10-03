@@ -1,0 +1,9 @@
+{
+  "note": "Live create_task plaintext, re-encrypted under a dummy section.",
+  "source_fixture": "dfw-lhr",
+  "section": "pmTESTse",
+  "plaintext": "{\"search_type\":\"one_way\",\"cabins\":[\"Economy\",\"Premium Economy\",\"Business\",\"First\"],\"segments\":[{\"arrival\":\"LHR\",\"departure\":\"DFW\",\"departure_date\":{\"from\":\"2026-11-09\",\"to\":\"2026-11-11\"}}],\"passengers_v2\":{\"adults\":1,\"children\":0},\"source\":\"pc\"}",
+  "ciphertext": "BRok2+3WMnDidT9hA0RaqNqLx5Xu1Ar7etZaC+CEw6rDXeN3W2tViIQs9ATmrm/PzLfLMTWvYny1EsjbZYX0rjYOo4UuumR+CII00ZhdoIjvNnKFJizpcEg0Z7d8kew2mNzPEeN+vLeirtRaIF2r1GQciERBmcRzIWlcEjTQp8fOfooqQnB4dCPWKTBhVJiyXG2kCbNxJCcaEU5h7D0EBAt/4AdjOGHtYuJIFavsiz7hZkAbRfDSrAl3iVxhnLFen/j0nOuNVqgk5DgJpA9RSPtbCP834D9oypCXEzxpaeDNxW0LfVUsZ/SjO/A/vGQ0ymMuYpFZ/REEpdQrX1ETsQ==",
+  "browser_byte_match": true,
+  "live_data_ciphertext": "0MrmrNB8wpYJAEXkmD2D6PAafK9IT1MYTUpGG/YgIwpMN7hQ+ubQO4iS9VK4i71VkufQu/uO7QiIs5fHXlM04DQrWrrSA5MQnFTnCjIgULvebt1MmCIIXMNzDmlE45dy+XUdbZ8qy96g7Gh331qCzJG1keCI9SWrvxMUAXaQ3InqVKELHAtzW/8xFvT2kzGcD97ZF5+F+6TnERQJnlixVx1t7rUtlYLyMAoqgWRsPVoFD+3N9o4k01XaWp7n3IgGAjsfbkmC4XOzdC1EUEemKN7/EuD6HKhVRpSxiIa2Ab5jKIjCD5wzUA1vehidAp/x5G89HV365Xm+OdjMhJ6AXg=="
+}
