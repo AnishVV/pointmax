@@ -1,7 +1,7 @@
 """Paths and user settings (~/.config/pointmax/config.toml).
 
-Defaults are best-knowledge placeholders (the reference valuation doc was not available), so
-every number below should be reviewed by the account owner before trusting rankings.
+Cents-per-point defaults come from the reference valuation doc (Sept. 2026 snapshot). Buffers,
+distance bands and the hotel allowance are still best-knowledge placeholders to review.
 """
 
 import copy
@@ -50,24 +50,29 @@ home = ["AUS", "DFW"]
 cache_ttl_hours = 6
 dominance_pct = 10        # a self-built itinerary must beat a single ticket by this much
 
-# Cents per point/mile. UNVERIFIED placeholders: set your own valuations.
+# Cents per point/mile. Baselines from the reference doc point-valuations-and-transfer-partners.md
+# (snapshot Sept. 2026; it says to re-pull monthly). Set your own valuations if they differ.
 [cpp]
 # Bank currencies (names as PointsYeah reports them)
-"Chase Ultimate Rewards" = 2.0
+"Chase Ultimate Rewards" = 2.05
 "American Exp Membership Rewards" = 2.0
-"Citi ThankYou" = 1.8
-"Capital One" = 1.8
-"Bilt" = 2.0
-"WF" = 1.6
-"US Bank" = 1.5
+"Citi ThankYou" = 1.9
+"Capital One" = 1.85
+"Bilt" = 2.2
+"WF" = 1.6                # not in the reference doc: unverified
+"US Bank" = 1.5           # not in the reference doc: unverified
 # Airline programs (names as PointsYeah reports them), valued for your own miles
+"Alaska Atmos Rewards" = 1.55
+"Avianca LifeMiles" = 1.55
 "Air Canada Aeroplan" = 1.5
-"Air France/KLM Flying Blue" = 1.3
-"American Airlines AAdvantage" = 1.6
-"Alaska Atmos Rewards" = 1.5
-"United MileagePlus" = 1.3
+"American Airlines AAdvantage" = 1.45
+"Virgin Atlantic Flying Club" = 1.45
+"JetBlue True Blue" = 1.35
+"Air France/KLM Flying Blue" = 1.4
+"United MileagePlus" = 1.2
 "Delta SkyMiles" = 1.2
-"Virgin Atlantic Flying Club" = 1.4
+"Qantas Frequent Flyer" = 1.2
+"Turkish Miles & Smiles" = 1.1
 "default" = 1.2           # any program not listed above
 
 # Program miles you already hold. A program's own miles only count as a funding path if listed.

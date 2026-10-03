@@ -1,15 +1,13 @@
 from datetime import date
-from pathlib import Path
 
 import pytest
-from synthetic import FakeBackend, opt, scenario
+from synthetic import FakeBackend, opt, pinned_settings, scenario
 
-from pointmax import config
 from pointmax.models import Cabin
 from pointmax.planner import plan as pl
 from pointmax.rank import filters as flt
 
-S = config.load_settings(Path("/nonexistent.toml"))
+S = pinned_settings()
 
 
 def query(**kw):

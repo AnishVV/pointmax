@@ -16,7 +16,7 @@ def test_xdg_default(monkeypatch, tmp_path):
 def test_defaults_load(tmp_path):
     s = config.load_settings(tmp_path / "missing.toml")
     assert s.home == ["AUS", "DFW"]
-    assert s.cpp_for("chase ultimate rewards") == 2.0
+    assert s.cpp_for("chase ultimate rewards") == 2.05
     assert s.cpp_for("Unknown Program") == 1.2
     assert s.ring_caps == {1: 5, 2: 6, 3: 6}
 

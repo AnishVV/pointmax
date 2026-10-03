@@ -1,8 +1,10 @@
 """SYNTHETIC PointsYeah-shaped data in the verified schema, for edge cases the recorded fixtures
 lack. Whole-response behaviour is tested against tests/fixtures (test_recorded.py)."""
 
+from pathlib import Path
 from typing import Any
 
+from pointmax import config
 from pointmax.sources.base import SearchRequest
 from pointmax.sources.pointsyeah.normalize import normalize_routes
 
@@ -184,3 +186,19 @@ def scenario():
             )
         ],
     }
+
+
+# Hand-computed costs in the tests use these round valuations, not the shipped defaults,
+# so re-pulling the reference valuations never changes what the tests check.
+PINNED_CPP = {
+    "Chase Ultimate Rewards": 2.0,
+    "Bilt": 2.0,
+    "Air Canada Aeroplan": 1.5,
+    "default": 1.2,
+}
+
+
+def pinned_settings():
+    s = config.load_settings(Path("/nonexistent.toml"))
+    s.cpp = {**s.cpp, **PINNED_CPP}
+    return s

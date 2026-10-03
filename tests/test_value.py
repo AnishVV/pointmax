@@ -1,16 +1,14 @@
 from datetime import date, datetime
-from pathlib import Path
 
 import pytest
-from synthetic import route, segment
+from synthetic import pinned_settings, route, segment
 
-from pointmax import config
 from pointmax.models import AwardOption, CashLeg, Itinerary
 from pointmax.rank import filters as flt
 from pointmax.rank import value as v
 from pointmax.sources.pointsyeah.normalize import normalize_routes
 
-S = config.load_settings(Path("/nonexistent.toml"))
+S = pinned_settings()
 
 
 def opt(**kw) -> AwardOption:
@@ -48,7 +46,7 @@ def test_cheapest_funding_path_with_bonus_label():
 def test_own_miles_only_if_balance_listed():
     o = opt(miles=60000, transfer=[{"bank": "Chase Ultimate Rewards", "points": 60000}])
     assert v.best_funding(o, S, 1)[1] == pytest.approx(1200.0)  # own miles at 1.5c ignored
-    s2 = config.load_settings(Path("/nonexistent.toml"))
+    s2 = pinned_settings()
     s2.balances = {"Air Canada Aeroplan": 100000}
     label, usd, _ = v.best_funding(o, s2, 1)
     assert usd == pytest.approx(900.0) and "balance" in label
