@@ -36,6 +36,10 @@ def cache_path() -> Path:
     return config_dir() / "cache.sqlite"
 
 
+def history_path() -> Path:
+    return config_dir() / "history.sqlite"
+
+
 def last_search_path() -> Path:
     return config_dir() / "last_search.json"
 

@@ -15,6 +15,22 @@ uv run pointmax search home LHR --date 2026-12-23 --flex 2 --cabin business
 uv run pointmax show 1
 ```
 
+## Search history
+
+Every `search` is logged with its query and ranked results to `~/.config/pointmax/history.sqlite`
+(next to the cache, never in the repo; no expiry), so you can compare routes, dates and
+programs across runs.
+
+```sh
+uv run pointmax history list --to LHR --cabin business   # past runs, best effective cost
+uv run pointmax history show 12                          # its results; then `show N` works
+uv run pointmax history export runs.csv                  # one row per result (--runs: per run)
+uv run pointmax history delete 12
+```
+
+Filters on `list` and `export`: `--from`, `--to`, `--cabin`, `--program`, `--since YYYY-MM-DD`.
+The file is plain SQLite (tables `runs` and `results`), so `sqlite3` or pandas can query it too.
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and Google Chrome.
@@ -61,7 +77,7 @@ code). Refresh it with `uv run python scripts/update_airports.py`.
 
 ```
 src/pointmax/
-  cli.py, config.py, models.py, cache.py, ratelimit.py
+  cli.py, config.py, models.py, cache.py, history.py, ratelimit.py
   sources/pointsyeah/   session, crypto, client, raw, normalize
   geo/                  airports (OurAirports, haversine, nearby), hubs
   planner/              candidates, plan, stitch
