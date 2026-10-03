@@ -1,0 +1,32 @@
+{
+  "search_type": "multi_city",
+  "cabins": [
+    "Economy",
+    "Premium Economy",
+    "Business",
+    "First"
+  ],
+  "segments": [
+    {
+      "arrival": "IAH",
+      "departure": "AUS",
+      "departure_date": {
+        "from": "2026-11-09",
+        "to": "2026-11-10"
+      }
+    },
+    {
+      "arrival": "AMD",
+      "departure": "IAH",
+      "departure_date": {
+        "from": "2026-11-10",
+        "to": "2026-11-11"
+      }
+    }
+  ],
+  "passengers_v2": {
+    "adults": 1,
+    "children": 0
+  },
+  "source": "pc"
+}

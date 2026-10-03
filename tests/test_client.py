@@ -43,7 +43,7 @@ def seq(*bodies):
 
 @respx.mock
 async def test_stops_when_summary_count_matches_total():
-    s1 = summary("Aeroplan", routes=[route()])
+    s1 = summary("Air Canada Aeroplan", routes=[route()])
     s2 = summary("United", routes=[route("United MileagePlus", 70000)])
     respx.post(CREATE).mock(return_value=httpx.Response(200, json=create_body("T1", 2)))
     f = respx.post(FETCH).mock(
@@ -70,19 +70,20 @@ async def test_create_body_is_encrypted_with_session_key():
     sent = json.loads(r.calls[0].request.content)
     q = json.loads(crypto.decrypt_text(sent["encrypted"], SECTION))
     assert q["search_type"] == "one_way" and q["cabins"] == c.ALL_CABINS
-    assert q["passengers_v2"]["adults"] == 1 and q["source"] == "mobile"
+    assert q["passengers_v2"]["adults"] == 1 and q["source"] == "pc"
     assert r.calls[0].request.headers["cookie"] == "sid=x"
 
 
 @respx.mock
-async def test_quiet_fallback_after_three_empty_done_polls():
+async def test_quiet_fallback_after_first_done():
     respx.post(CREATE).mock(return_value=httpx.Response(200, json=create_body("T1", 5)))
     respx.post(FETCH).mock(
         side_effect=seq(
-            fetch_body("done", [summary()]),
+            fetch_body("processing", [summary()]),
             fetch_body("done", []),
-            fetch_body("done", []),
-            fetch_body("done", []),
+            fetch_body("processing", []),
+            fetch_body("processing", []),
+            fetch_body("processing", []),
         )
     )
     cl, _ = make()
@@ -101,7 +102,7 @@ async def test_cap_after_four_minutes():
 
 
 @respx.mock
-async def test_cadence_fast_then_slow():
+async def test_cadence_five_then_seven_then_two_after_done():
     respx.post(CREATE).mock(return_value=httpx.Response(200, json=create_body("T1", 9)))
     respx.post(FETCH).mock(return_value=httpx.Response(200, json=fetch_body("processing", [])))
     cl, clock = make()
@@ -115,7 +116,7 @@ async def test_cadence_fast_then_slow():
     cl.fetch_result = spy
     await cl.run_tasks([REQ])
     gaps = [round(b - a) for a, b in pairwise(times)]
-    assert gaps[:2] == [2, 2] and set(gaps[3:8]) == {6}
+    assert gaps and set(gaps) == {7}
 
 
 @respx.mock

@@ -1,0 +1,15 @@
+{
+  "label": "dfw-amd",
+  "captured_at": "2026-10-03T02:27:34.306997+00:00",
+  "task_id": "1bb2f9af97a34c56a3dc78dcb456aa34",
+  "total_sub_tasks": 54,
+  "polls": 39,
+  "browser_byte_match": true,
+  "reencrypt_match": true,
+  "data_equals_encrypted": false,
+  "request_headers": {
+    "referer": "https://www.pointsyeah.com/",
+    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    "content-type": "application/json"
+  }
+}

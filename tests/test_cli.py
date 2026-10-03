@@ -62,7 +62,7 @@ def test_search_table_ring_table_and_show(fake_search, home):
     result = runner.invoke(cli.app, args, terminal_width=200)
     assert result.exit_code == 0, result.output
     assert "[IAH]→LHR" in result.output and "Ring tradeoff" in result.output
-    assert "Aeroplan" in result.output
+    assert "Air Canada Aeroplan" in result.output
     shown = runner.invoke(cli.app, ["show", "1"], terminal_width=200)
     assert shown.exit_code == 0 and "funding:" in shown.output and "UA900" in shown.output
     assert runner.invoke(cli.app, ["show", "99"]).exit_code == 1

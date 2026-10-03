@@ -23,11 +23,11 @@ def test_defaults_load(tmp_path):
 
 def test_user_file_overrides_partially(tmp_path):
     p = tmp_path / "config.toml"
-    p.write_text('home = ["sat"]\n[cpp]\n"Bilt" = 2.5\n[balances]\n"Aeroplan" = 80000\n')
+    p.write_text('home = ["sat"]\n[cpp]\n"Bilt" = 2.5\n[balances]\n"Air Canada Aeroplan" = 80000\n')
     s = config.load_settings(p)
     assert s.home == ["SAT"]
-    assert s.cpp_for("Bilt") == 2.5 and s.cpp_for("Aeroplan") == 1.5  # others kept
-    assert s.balances == {"Aeroplan": 80000}
+    assert s.cpp_for("Bilt") == 2.5 and s.cpp_for("Air Canada Aeroplan") == 1.5  # others kept
+    assert s.balances == {"Air Canada Aeroplan": 80000}
 
 
 def test_cash_estimate_bands(tmp_path):

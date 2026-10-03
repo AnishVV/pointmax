@@ -1,11 +1,13 @@
 """PointsYeah search client: encrypt, create_task, fetch_result, round-robin poller.
 
-Request and response shapes are GUESSES until fixtures are recorded: see `build_query` and the
-parsers in raw.py. Everything else (limiter, cadence, stop rules, retries) follows the plan.
+Request and response shapes are verified against recorded fixtures (tests/fixtures).
 
-Poller stop rule (primary): distinct summaries received == total_sub_tasks AND latest status
-is done. Fallback: 3 consecutive done polls with an empty result, or 4 minutes per task.
-Cadence: ~2 s for a task's first 3 polls, then ~6 s, always through the shared limiter.
+Recorded behaviour: results are drained (each poll returns a disjoint batch), `total_sub_tasks`
+over-counts (54 announced, 51 summaries arrive), and every task ends its status sequence
+"processing..., done, processing, done". So the primary stop rule is the SECOND `done` poll.
+Fallbacks: summaries >= total and done; 3 empty polls after the first done; 4 minutes per task.
+Cadence: first poll ~5 s after create, ~7 s apart until the first `done`, then ~2 s. Always
+through the shared limiter.
 """
 
 import asyncio
@@ -30,7 +32,8 @@ API_BASE = "https://api2.pointsyeah.com"
 CREATE_PATH = "/flight/search/create_task"
 FETCH_PATH = "/flight/search/fetch_result"
 ALL_CABINS = ["Economy", "Premium Economy", "Business", "First"]
-FAST_POLLS, FAST_INTERVAL_S, SLOW_INTERVAL_S = 3, 2.0, 6.0
+FIRST_POLL_S, POLL_INTERVAL_S, AFTER_DONE_INTERVAL_S = 5.0, 7.0, 2.0
+STOP_AT_DONE_POLLS = 2
 QUIET_DONE_POLLS = 3
 TASK_CAP_S = 240.0
 RETRIES = 2
@@ -42,21 +45,19 @@ class ApiError(RuntimeError):
 
 
 def build_query(req: SearchRequest) -> dict[str, Any]:
-    """The plaintext create_task query. GUESS: key names beyond search_type, cabins,
-    passengers_v2.adults and source are placeholders until a live query is decrypted."""
+    """The plaintext create_task query; key order matches the browser, byte for byte."""
     return {
         "search_type": req.search_type,
+        "cabins": ALL_CABINS,
         "segments": [
             {
-                "origin": req.origin,
-                "destination": req.dest,
-                "date_start": req.start.isoformat(),
-                "date_end": req.end.isoformat(),
+                "arrival": req.dest,
+                "departure": req.origin,
+                "departure_date": {"from": req.start.isoformat(), "to": req.end.isoformat()},
             }
         ],
-        "cabins": ALL_CABINS,
-        "passengers_v2": {"adults": req.pax, "children": 0, "infants": 0},
-        "source": "mobile",
+        "passengers_v2": {"adults": req.pax, "children": 0},
+        "source": "pc",
     }
 
 
@@ -68,6 +69,7 @@ class TaskState:
     polls: int = 0
     status: str = ""
     quiet_done: int = 0
+    done_polls: int = 0
     summaries: set[tuple[str, ...]] = field(default_factory=set)
     routes: dict[tuple[Any, ...], dict[str, Any]] = field(default_factory=dict)
     started: float = 0.0
@@ -86,7 +88,10 @@ class TaskState:
             self.summaries.add(key)
             for route in raw.item_routes(item):
                 self.routes.setdefault(raw.route_key(route), route)
-        self.quiet_done = self.quiet_done + 1 if status == "done" and not items else 0
+        if status == "done":
+            self.done_polls += 1
+        # empty polls once the first `done` has been seen
+        self.quiet_done = self.quiet_done + 1 if self.done_polls and not items else 0
 
 
 class PointsYeahClient:
@@ -180,8 +185,8 @@ class PointsYeahClient:
 
     async def create_task(self, req: SearchRequest) -> tuple[str, int]:
         enc = crypto.encrypt_query(build_query(req), self.session.request_key_section)
-        # `data` needs the bundle's default key in the browser; until M2 extracts it we test
-        # whether the server accepts `data == encrypted` (open question in the plan).
+        # The browser's `data` is a different ciphertext under a bundle default key we have not
+        # found; whether the server accepts `data == encrypted` is still untested live.
         body = await self._post(CREATE_PATH, {"data": enc, "encrypted": enc})
         if raw.response_code(body) != 0:
             msg = body.get("message") or body.get("msg") or "" if isinstance(body, dict) else ""
@@ -213,12 +218,13 @@ class PointsYeahClient:
 
     # ---- poller --------------------------------------------------------------------------
 
-    def _interval(self, polls: int) -> float:
-        return FAST_INTERVAL_S if polls < FAST_POLLS else SLOW_INTERVAL_S
+    def _interval(self, t: TaskState) -> float:
+        return AFTER_DONE_INTERVAL_S if t.done_polls else POLL_INTERVAL_S
 
     def _check_stop(self, t: TaskState) -> None:
         now = self._clock()
-        if t.status == "done" and t.total and len(t.summaries) >= t.total:
+        all_in = t.status == "done" and t.total and len(t.summaries) >= t.total
+        if t.done_polls >= STOP_AT_DONE_POLLS or all_in:
             t.stop_reason = "complete"
         elif t.quiet_done >= QUIET_DONE_POLLS:
             t.stop_reason = "quiet"
@@ -258,7 +264,7 @@ class PointsYeahClient:
                 t.error = str(e)
                 continue
             t.started = self._clock()
-            t.next_poll = t.started + FAST_INTERVAL_S
+            t.next_poll = t.started + FIRST_POLL_S
             self._emit(tasks)
 
         while True:
@@ -280,7 +286,7 @@ class PointsYeahClient:
             t.polls += 1
             status, items = raw.parse_fetch(body)
             t.absorb(status, items)
-            t.next_poll = self._clock() + self._interval(t.polls)
+            t.next_poll = self._clock() + self._interval(t)
             self._check_stop(t)
             self._emit(tasks)
         return tasks

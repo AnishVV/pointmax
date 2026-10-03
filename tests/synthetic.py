@@ -1,8 +1,5 @@
-"""SYNTHETIC PointsYeah-shaped data built from the plan's guessed schema.
-
-Not recorded from the live API. When real fixtures exist, these helpers should be replaced by
-them (or kept only for edge cases) and the field names in raw.py verified.
-"""
+"""SYNTHETIC PointsYeah-shaped data in the verified schema, for edge cases the recorded fixtures
+lack. Whole-response behaviour is tested against tests/fixtures (test_recorded.py)."""
 
 from typing import Any
 
@@ -20,20 +17,20 @@ def segment(
     layover=0,
 ) -> dict[str, Any]:
     return {
-        "flight_no": flight,
-        "carrier": flight[:2],
-        "from": frm,
-        "to": to,
-        "dt": dt,
-        "at": at,
-        "cabin": cabin,
-        "aircraft": "77W",
+        "duration": 600,
+        "flight_number": flight,
+        "aircraft": "Boeing 777-300ER ",
+        "dt": dt.replace(" ", "T") + ":00",
+        "da": frm,
+        "at": at.replace(" ", "T") + ":00",
+        "aa": to,
         "layover": layover,
+        "cabin": cabin,
     }
 
 
 def route(
-    program="Aeroplan",
+    program="Air Canada Aeroplan",
     miles=60000,
     tax=78.0,
     cabin="Business",
@@ -44,43 +41,51 @@ def route(
     seats=9999,
     **extra,
 ) -> dict[str, Any]:
+    """A route as PointsYeah returns it: no date/origin/dest (the summary carries the date)."""
     segs = segments if segments is not None else [segment(cabin=cabin)]
     return {
-        "program": program,
-        "program_code": program[:2].upper(),
-        "from": segs[0]["from"],
-        "to": segs[-1]["to"],
-        "date": date,
         "payment": {
-            "cabin": cabin,
-            "miles": miles,
-            "tax": tax,
-            "cash_price": cash_price,
             "currency": "USD",
+            "tax": tax,
+            "miles": miles,
+            "cabin": cabin,
+            "unit": "points",
+            "short_unit": "pts",
+            "seats": seats,
+            "cash_price": cash_price,
         },
-        "seats": seats,
-        "duration": 840,
-        "premium_pct": 0,
-        "booking_url": "https://example.test/book",
         "segments": segs,
+        "duration": 840,
+        "cross_days": 1,
+        "program": program,
+        "code": program[:2].upper(),
+        "premium_cabin_percentage": 0,
+        "url": "https://example.test/book",
+        "cash_ticket_url": "",
+        "extra": {},
+        "promotion": None,
         "transfer": transfer
         if transfer is not None
         else [
             {
                 "bank": "Chase Ultimate Rewards",
-                "points": miles,
                 "actual_points": miles,
+                "points": miles,
                 "bonus_percentage": 0,
+                "bonus_end_date": 0,
+                "bonus_slogn": "",
+                "url": "",
+                "code": "CH",
             }
         ],
-        "promotion": None,
         **extra,
     }
 
 
-def summary(program="Aeroplan", date="2026-12-23", dep="DFW", arr="LHR", routes=None):
+def summary(program="Air Canada Aeroplan", date="2026-12-23", dep="DFW", arr="LHR", routes=None):
     return {
         "program": program,
+        "code": program[:2].upper(),
         "date": date,
         "departure": dep,
         "arrival": arr,
@@ -89,11 +94,15 @@ def summary(program="Aeroplan", date="2026-12-23", dep="DFW", arr="LHR", routes=
 
 
 def fetch_body(status, items):
-    return {"code": 0, "data": {"status": status, "result": items}}
+    return {"code": 0, "success": True, "data": {"status": status, "result": items}}
 
 
 def create_body(task_id="T1", total=2):
-    return {"code": 0, "data": {"task_id": task_id, "total_sub_tasks": total}}
+    return {
+        "code": 0,
+        "success": True,
+        "data": {"task_id": task_id, "total_sub_tasks": total, "status": "created"},
+    }
 
 
 def opt(
@@ -151,7 +160,7 @@ def scenario():
         ],
         ("IAH", "LHR"): [
             opt(
-                "Aeroplan",
+                "Air Canada Aeroplan",
                 60000,
                 "IAH",
                 "LHR",
