@@ -1,4 +1,4 @@
-"""Typer app: login, status, search, show, config, cache."""
+"""Typer app: login, status, search, show, history, config, cache."""
 
 import asyncio
 import json
@@ -12,6 +12,7 @@ from rich.console import Console
 
 from pointmax import __version__, config
 from pointmax.cache import Cache
+from pointmax.history import History, RunFilter
 from pointmax.models import Cabin, Itinerary
 from pointmax.planner.plan import Planner, Query, SearchResult
 from pointmax.rank import filters as flt
@@ -180,9 +181,14 @@ def _search_one(
     verbose: bool,
     label: str,
     save_raw: Path | None = None,
-) -> list[Itinerary] | None:
+    *,
+    leg: str = "outbound",
+    parent_id: int | None = None,
+) -> tuple[list[Itinerary], int | None] | None:
+    """Run, render and log one search. Returns the ranked results and the history run id."""
     console.rule(label)
     _live.pop("planner", None)
+    status = "ok"
     try:
         _, res = asyncio.run(_run_search(q, settings, verbose=verbose, save_raw=save_raw))
     except sess.SessionError as e:
@@ -191,7 +197,9 @@ def _search_one(
         if live is None:  # no session at all: nothing to show
             return None
         res = live.partial
+        status = "session_error"
     except KeyboardInterrupt:
+        status = "interrupted"
         console.print(
             "\n[yellow]Interrupted. Showing what was found so far (it is all cached).[/yellow]"
         )
@@ -203,7 +211,28 @@ def _search_one(
     val.apply_savings(its)
     ranked = flt.sort_itineraries(its, sort)
     table.render_results(console, res, ranked, top)
-    return ranked
+    return ranked, _log_run(q, res, ranked, sort, leg, parent_id, status)
+
+
+def _log_run(
+    q: Query,
+    res: SearchResult,
+    ranked: list[Itinerary],
+    sort: str,
+    leg: str,
+    parent_id: int | None,
+    status: str,
+) -> int | None:
+    """Append the run to the search history. A history failure never loses the search."""
+    try:
+        h = History(config.history_path())
+        try:
+            return h.record(q, res, ranked, sort=sort, leg=leg, parent_id=parent_id, status=status)
+        finally:
+            h.close()
+    except Exception as e:
+        console.print(f"[yellow]Could not save to search history: {e}[/yellow]")
+        return None
 
 
 @app.command()
@@ -286,6 +315,7 @@ def search(
     )
     if out is None:
         raise typer.Exit(1)
+    out, run_id = out
     export.save_last(config.last_search_path(), out)
     if return_date:
         back = _search_one(
@@ -296,11 +326,13 @@ def search(
             verbose,
             f"{dest.upper()} → {homes[0]}  {return_date} (return)",
             save_raw,
+            leg="return",
+            parent_id=run_id,
         )
         console.print(
             "[dim]Return plans direct only; positioning for returns is not searched yet.[/dim]"
         )
-        out = out + (back or [])
+        out = out + (back[0] if back else [])
     if json_out:
         export.export(json_out, SearchResult(out, []), out)
         console.print(f"Wrote {json_out}")
@@ -351,3 +383,120 @@ def cache(clear: bool = typer.Option(False, "--clear", help="Delete all cached s
             f"entries older than {st['stale_after_hours']:g} h are ignored."
         )
     c.close()
+
+
+# ---- history ---------------------------------------------------------------------------
+
+history_app = typer.Typer(
+    help="Past searches and their results, kept locally to compare and tune future searches.",
+    no_args_is_help=True,
+)
+app.add_typer(history_app, name="history")
+
+
+def _run_filter(
+    origin: str, dest: str, cabin: str, program: str, since: str, limit: int | None = None
+) -> RunFilter:
+    if since:
+        _parse_date(since)
+    try:
+        cab = Cabin.parse(cabin).name.lower() if cabin else None
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from None
+    return RunFilter(
+        origin=origin or None,
+        dest=dest or None,
+        cabin=cab,
+        program=program or None,
+        since=since or None,
+        limit=limit,
+    )
+
+
+_ORIGIN = typer.Option("", "--from", help="Runs that searched from this airport.")
+_DEST = typer.Option("", "--to", help="Runs to this destination.")
+_CABIN = typer.Option("", "--cabin", help="economy|premium|business|first")
+_PROGRAM = typer.Option("", "--program", help="Runs with a result in this program (substring).")
+_SINCE = typer.Option("", "--since", help="Runs on or after YYYY-MM-DD.")
+
+
+@history_app.command("list")
+def history_list(
+    origin: str = _ORIGIN,
+    dest: str = _DEST,
+    cabin: str = _CABIN,
+    program: str = _PROGRAM,
+    since: str = _SINCE,
+    limit: int = typer.Option(20, "--limit", min=1),
+) -> None:
+    """Past runs, newest first: route, dates, best effective cost and program."""
+    h = History(config.history_path())
+    runs = h.runs(_run_filter(origin, dest, cabin, program, since, limit))
+    h.close()
+    if not runs:
+        console.print(
+            "No searches recorded yet."
+            if not any((origin, dest, cabin, program, since))
+            else "No searches match."
+        )
+        return
+    console.print(table.history_table(runs))
+    console.print("[dim]`pointmax history show ID` for a run's results.[/dim]")
+
+
+@history_app.command("show")
+def history_show(
+    run_id: int = typer.Argument(..., help="Run ID from `pointmax history list`."),
+    top: int = typer.Option(15, "--top"),
+) -> None:
+    """The ranked results of a past run. They also become the target of `pointmax show N`."""
+    h = History(config.history_path())
+    run = h.run(run_id)
+    its = h.itineraries(run_id) if run else []
+    h.close()
+    if run is None:
+        _fail(f"No run {run_id} in the search history.")
+        return
+    dates = run["depart_start"]
+    if run["depart_end"] != run["depart_start"]:
+        dates += f" to {run['depart_end']}"
+    console.rule(
+        f"Run {run_id}: {run['origins'].replace(',', '/')} → {run['dest']}  {dates}  ({run['at']})"
+    )
+    if not its:
+        console.print("[yellow]That run found no award space.[/yellow]")
+        return
+    console.print(table.results_table(its, top))
+    export.save_last(config.last_search_path(), its)
+    console.print("[dim]Run `pointmax show N` for the legs, funding path and booking link.[/dim]")
+
+
+@history_app.command("export")
+def history_export(
+    path: Path = typer.Argument(..., help="CSV file to write."),
+    runs_only: bool = typer.Option(
+        False, "--runs", help="One row per run instead of one row per result."
+    ),
+    origin: str = _ORIGIN,
+    dest: str = _DEST,
+    cabin: str = _CABIN,
+    program: str = _PROGRAM,
+    since: str = _SINCE,
+) -> None:
+    """Write past runs and results to CSV (opens in Excel, Numbers, pandas)."""
+    h = History(config.history_path())
+    n = h.export_csv(path, _run_filter(origin, dest, cabin, program, since), runs_only=runs_only)
+    h.close()
+    console.print(f"Wrote {n} {'runs' if runs_only else 'results'} to {path}")
+
+
+@history_app.command("delete")
+def history_delete(run_id: int = typer.Argument(..., help="Run ID to remove.")) -> None:
+    """Remove one run (and its return leg) from the history."""
+    h = History(config.history_path())
+    ok = h.delete(run_id)
+    h.close()
+    if not ok:
+        _fail(f"No run {run_id} in the search history.")
+        return
+    console.print(f"Deleted run {run_id}.")

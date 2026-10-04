@@ -9,3 +9,5 @@ build/
 # Raw, unscrubbed captures never enter the repo; only scrubbed fixtures do.
 captures/
 session.json
+# Local databases (cache, search history) live in the config dir; never commit one.
+*.sqlite
